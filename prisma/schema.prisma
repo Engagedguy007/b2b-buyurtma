@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OUTLET
+  MANAGER
+  COURIER
+}
+
+enum OrderStatus {
+  NEW
+  CONFIRMED
+  IN_PRODUCTION
+  READY
+  ASSIGNED
+  PICKED_UP
+  OUT_FOR_DELIVERY
+  DELIVERED
+  REJECTED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  outletProfile OutletProfile?
+  outletOrders  Order[]   @relation("OutletOrders")
+  assignedOrders Order[]  @relation("AssignedCourier")
+  templates     OrderTemplate[]
+  favorites     FavoriteProduct[]
+}
+
+model OutletProfile {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  outletName String
+  phone      String
+  address    String
+  region     String
+  geo        String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  name          String
+  sku           String   @unique
+  unit          String
+  price         Decimal? @db.Decimal(12, 2)
+  isActive      Boolean  @default(true)
+  packSize      Int?
+  minOrderQty   Int?
+  createdAt     DateTime @default(now())
+
+  orderItems    OrderItem[]
+  templateItems OrderTemplateItem[]
+  favorites     FavoriteProduct[]
+}
+
+model Order {
+  id                String      @id @default(cuid())
+  outletId          String
+  status            OrderStatus @default(NEW)
+  deliveryDate      DateTime
+  note              String?
+  totalQty          Int
+  createdAt         DateTime    @default(now())
+  confirmedAt       DateTime?
+  assignedCourierId String?
+  rejectionReason   String?
+
+  outlet            User        @relation("OutletOrders", fields: [outletId], references: [id], onDelete: Restrict)
+  assignedCourier   User?       @relation("AssignedCourier", fields: [assignedCourierId], references: [id], onDelete: SetNull)
+  items             OrderItem[]
+
+  @@index([outletId, createdAt])
+  @@index([status, deliveryDate])
+}
+
+model OrderItem {
+  id           String   @id @default(cuid())
+  orderId       String
+  productId     String
+  qty           Int
+  unitSnapshot  String
+  nameSnapshot  String
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+}
+
+model OrderTemplate {
+  id          String   @id @default(cuid())
+  outletId    String
+  name        String
+  createdAt   DateTime @default(now())
+
+  outlet User @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  items  OrderTemplateItem[]
+
+  @@index([outletId, createdAt])
+}
+
+model OrderTemplateItem {
+  id          String @id @default(cuid())
+  templateId  String
+  productId   String
+  qty         Int
+
+  template OrderTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  product  Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, productId])
+}
+
+model FavoriteProduct {
+  id        String @id @default(cuid())
+  outletId  String
+  productId String
+
+  outlet  User    @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([outletId, productId])
+}
