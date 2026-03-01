@@ -18,6 +18,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Rad etish sababi kerak" }, { status: 400 });
   }
 
+  const order = await prisma.order.findFirst({ where: { id, companyId: guard.companyId } });
+  if (!order) return NextResponse.json({ error: "Buyurtma topilmadi" }, { status: 404 });
+
+  if (data.assignedCourierId) {
+    const courier = await prisma.user.findFirst({
+      where: { id: data.assignedCourierId, companyId: guard.companyId, role: UserRole.COURIER, isActive: true }
+    });
+    if (!courier) return NextResponse.json({ error: "Kurer topilmadi" }, { status: 400 });
+  }
+
   const updated = await prisma.order.update({
     where: { id },
     data: {

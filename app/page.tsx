@@ -8,7 +8,7 @@ export default async function HomePage() {
   if (!session) redirect("/login");
   if (role === "OUTLET") redirect("/outlet");
   if (role === "MANAGER") redirect("/manager");
-  if (role === "COURIER") redirect("/courier");
+  if (role === "COURIER") redirect("/courier/orders");
 
   redirect("/login");
 }

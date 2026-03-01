@@ -18,15 +18,16 @@ export async function POST(req: Request) {
 
   const { productId, favorite } = parsed.data;
   const outletId = guard.session.user.id;
+  const companyId = guard.companyId;
 
   if (favorite) {
     await prisma.favoriteProduct.upsert({
       where: { outletId_productId: { outletId, productId } },
-      update: {},
-      create: { outletId, productId }
+      update: { companyId },
+      create: { companyId, outletId, productId }
     });
   } else {
-    await prisma.favoriteProduct.deleteMany({ where: { outletId, productId } });
+    await prisma.favoriteProduct.deleteMany({ where: { companyId, outletId, productId } });
   }
 
   return NextResponse.json({ ok: true });

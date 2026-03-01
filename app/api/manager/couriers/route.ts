@@ -8,7 +8,7 @@ export async function GET() {
   if ("error" in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const couriers = await prisma.user.findMany({
-    where: { role: UserRole.COURIER, isActive: true },
+    where: { companyId: guard.companyId, role: UserRole.COURIER, isActive: true },
     select: { id: true, name: true, email: true }
   });
 

@@ -1,43 +1,31 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { getDictionary, type AppLocale } from "@/lib/i18n";
 
 type Product = {
   id: string;
   name: string;
   sku: string;
   unit: string;
-  isActive: boolean;
   packSize: number | null;
   minOrderQty: number | null;
   isFavorite: boolean;
 };
 
 type OrderItem = { productId: string; qty: number; nameSnapshot: string; unitSnapshot: string };
-type Order = {
-  id: string;
-  status: string;
-  createdAt: string;
-  deliveryDate: string;
-  totalQty: number;
-  items: OrderItem[];
-};
-
-type Template = {
-  id: string;
-  name: string;
-  items: Array<{ productId: string; qty: number; product: { name: string; unit: string } }>;
-};
-
+type Order = { id: string; totalQty: number; items: OrderItem[] };
+type Template = { id: string; name: string; items: Array<{ productId: string; qty: number }> };
 type DashboardData = {
   profile: { outletName: string; phone: string; address: string; region: string } | null;
   products: Product[];
   templates: Template[];
   lastOrder: Order | null;
-  history: Order[];
 };
 
-export function OutletQuickOrder() {
+export function OutletQuickOrder({ locale }: { locale: AppLocale }) {
+  const d = getDictionary(locale);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -50,13 +38,13 @@ export function OutletQuickOrder() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const load = async () => {
+  async function load() {
     setLoading(true);
     const res = await fetch("/api/outlet/dashboard", { cache: "no-store" });
     const json = await res.json();
     setData(json);
     setLoading(false);
-  };
+  }
 
   useEffect(() => {
     load();
@@ -74,19 +62,20 @@ export function OutletQuickOrder() {
 
   const totalQty = useMemo(() => Object.values(qtyMap).reduce((sum, qty) => sum + qty, 0), [qtyMap]);
 
-  const setQty = (product: Product, value: number) => {
-    const clamped = Math.max(0, value);
-    setQtyMap((prev) => ({ ...prev, [product.id]: clamped }));
+  const setQty = (productId: string, value: number) => {
+    setQtyMap((prev) => ({ ...prev, [productId]: Math.max(0, value) }));
   };
 
-  const buildItems = () =>
-    Object.entries(qtyMap)
-      .filter(([, qty]) => qty > 0)
-      .map(([productId, qty]) => ({ productId, qty }));
+  const items = useMemo(
+    () =>
+      Object.entries(qtyMap)
+        .filter(([, qty]) => qty > 0)
+        .map(([productId, qty]) => ({ productId, qty })),
+    [qtyMap]
+  );
 
-  const submitQuickOrder = async () => {
+  async function submitQuickOrder() {
     setError("");
-    const items = buildItems();
     if (items.length === 0) {
       setError("Kamida bitta mahsulot tanlang");
       return;
@@ -103,6 +92,7 @@ export function OutletQuickOrder() {
         note
       })
     });
+
     const json = await res.json();
     setSaving(false);
 
@@ -114,63 +104,59 @@ export function OutletQuickOrder() {
     setQtyMap({});
     setNote("");
     await load();
-  };
+  }
 
-  const reorderLast = async () => {
+  async function reorderLast() {
     setSaving(true);
-    const items = data?.lastOrder?.items.map((item) => ({ productId: item.productId, qty: item.qty })) || undefined;
+    const payloadItems = data?.lastOrder?.items.map((item) => ({ productId: item.productId, qty: item.qty })) || undefined;
     const res = await fetch("/api/outlet/orders/reorder", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items, deliveryType: "TODAY" })
+      body: JSON.stringify({ items: payloadItems, deliveryType: "TODAY" })
     });
     setSaving(false);
     if (res.ok) await load();
-  };
+  }
 
-  const applyLastOrderToEditor = () => {
+  function editLastOrder() {
     if (!data?.lastOrder) return;
     const next: Record<string, number> = {};
     data.lastOrder.items.forEach((item) => {
       next[item.productId] = item.qty;
     });
     setQtyMap(next);
-  };
+  }
 
-  const saveTemplate = async () => {
-    const items = buildItems();
+  async function saveTemplate() {
     if (items.length === 0) {
       setError("Shablon uchun mahsulot tanlang");
       return;
     }
 
-    setSaving(true);
     const res = await fetch("/api/outlet/templates", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: templateName, items })
     });
-    setSaving(false);
     if (res.ok) await load();
-  };
+  }
 
-  const useTemplate = async (templateId: string) => {
-    setSaving(true);
+  async function useTemplate(templateId: string) {
     const res = await fetch(`/api/outlet/templates/${templateId}/create-order`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ deliveryType: "TODAY" })
     });
-    setSaving(false);
     if (res.ok) await load();
-  };
+  }
 
-  const toggleFavorite = async (productId: string, favorite: boolean) => {
+  async function toggleFavorite(productId: string, favorite: boolean) {
     await fetch("/api/outlet/favorites", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ productId, favorite })
     });
+
     setData((prev) =>
       prev
         ? {
@@ -181,31 +167,34 @@ export function OutletQuickOrder() {
           }
         : prev
     );
-  };
-
-  if (loading || !data) {
-    return <div className="card">Yuklanmoqda...</div>;
   }
+
+  if (loading || !data) return <div className="card">Yuklanmoqda...</div>;
 
   return (
     <div className="space-y-4 pb-28">
-      <div className="card">
-        <h1 className="text-xl font-bold">Tez zakas</h1>
-        <p className="text-sm text-slate-600">
-          {data.profile?.outletName} | {data.profile?.phone} | {data.profile?.address}
-        </p>
+      <div className="card flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold">{d["outlet.title"]}</h1>
+          <p className="text-sm text-slate-600">
+            {data.profile?.outletName} | {data.profile?.phone} | {data.profile?.address}
+          </p>
+        </div>
+        <Link href="/outlet/orders" className="rounded bg-slate-100 px-3 py-2 text-sm">
+          {d["outlet.tracking"]}
+        </Link>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="card md:col-span-2">
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="card lg:col-span-2">
           <div className="mb-3 flex gap-2">
-            <input placeholder="Qidiruv..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input placeholder={d["outlet.search"]} value={search} onChange={(e) => setSearch(e.target.value)} />
             <button
               type="button"
               className={`rounded-md px-3 py-2 text-sm ${favoritesOnly ? "bg-slate-900 text-white" : "bg-slate-200"}`}
               onClick={() => setFavoritesOnly((v) => !v)}
             >
-              Sevimlilar
+              {d["outlet.favorites"]}
             </button>
           </div>
 
@@ -213,33 +202,25 @@ export function OutletQuickOrder() {
             {products.map((product) => {
               const qty = qtyMap[product.id] || 0;
               return (
-                <div key={product.id} className="rounded-lg border border-slate-200 p-3">
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <div>
-                      <p className="font-semibold">{product.name}</p>
-                      <p className="text-xs text-slate-500">
-                        {product.sku} | {product.unit}
-                        {product.minOrderQty ? ` | min ${product.minOrderQty}` : ""}
-                        {product.packSize ? ` | pack ${product.packSize}` : ""}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      className="text-lg"
-                      onClick={() => toggleFavorite(product.id, !product.isFavorite)}
-                      title="Sevimli"
-                    >
-                      {product.isFavorite ? "★" : "☆"}
-                    </button>
+                <div key={product.id} className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">
+                  <div>
+                    <p className="font-medium">{product.name}</p>
+                    <p className="text-xs text-slate-500">
+                      {product.unit}
+                      {product.minOrderQty ? ` | min ${product.minOrderQty}` : ""}
+                      {product.packSize ? ` | pack ${product.packSize}` : ""}
+                    </p>
                   </div>
-
                   <div className="flex items-center gap-2">
-                    <button className="rounded bg-slate-200 px-3 py-1" onClick={() => setQty(product, qty - 1)} type="button">
+                    <button type="button" className="rounded bg-slate-200 px-3 py-1.5 text-lg" onClick={() => setQty(product.id, qty - 1)}>
                       -
                     </button>
-                    <div className="min-w-12 text-center text-lg font-bold">{qty}</div>
-                    <button className="rounded bg-slate-900 px-3 py-1 text-white" onClick={() => setQty(product, qty + 1)} type="button">
+                    <span className="min-w-8 text-center text-lg font-bold">{qty}</span>
+                    <button type="button" className="rounded bg-slate-900 px-3 py-1.5 text-lg text-white" onClick={() => setQty(product.id, qty + 1)}>
                       +
+                    </button>
+                    <button type="button" className="px-2 text-xl" onClick={() => toggleFavorite(product.id, !product.isFavorite)}>
+                      {product.isFavorite ? "★" : "☆"}
                     </button>
                   </div>
                 </div>
@@ -248,60 +229,43 @@ export function OutletQuickOrder() {
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="card space-y-2">
-            <p className="font-semibold">Qayta buyurtma</p>
-            <button onClick={reorderLast} disabled={!data.lastOrder || saving} className="w-full rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white" type="button">
-              Oxirgi buyurtmani takrorlash
+            <button className="w-full rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white" type="button" onClick={reorderLast} disabled={!data.lastOrder || saving}>
+              {d["outlet.reorder"]}
             </button>
-            <button onClick={applyLastOrderToEditor} disabled={!data.lastOrder} className="w-full rounded bg-slate-200 px-3 py-2 text-sm" type="button">
-              Oxirgi buyurtmani tahrirlashga yuklash
+            <button className="w-full rounded bg-slate-200 px-3 py-2 text-sm" type="button" onClick={editLastOrder} disabled={!data.lastOrder}>
+              {d["outlet.editLast"]}
             </button>
           </div>
 
           <div className="card space-y-2">
-            <p className="font-semibold">Shablonlar</p>
+            <p className="font-semibold">{d["outlet.templates"]}</p>
             <div className="flex gap-2">
-              <input value={templateName} onChange={(e) => setTemplateName(e.target.value)} placeholder="Shablon nomi" />
+              <input value={templateName} onChange={(e) => setTemplateName(e.target.value)} placeholder={d["outlet.templates"]} />
               <button className="rounded bg-slate-900 px-3 py-2 text-sm font-semibold text-white" type="button" onClick={saveTemplate}>
-                Saqlash
+                {d["outlet.createTemplate"]}
               </button>
             </div>
             <div className="space-y-2">
               {data.templates.map((template) => (
-                <div key={template.id} className="rounded border border-slate-200 p-2 text-sm">
-                  <p className="font-medium">{template.name}</p>
-                  <p className="text-xs text-slate-500">{template.items.length} ta item</p>
-                  <button className="mt-2 rounded bg-slate-200 px-2 py-1 text-xs" type="button" onClick={() => useTemplate(template.id)}>
-                    1 bosishda zakas
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="card">
-            <p className="mb-2 font-semibold">Buyurtmalar tarixi</p>
-            <div className="max-h-72 space-y-2 overflow-auto">
-              {data.history.map((order) => (
-                <div key={order.id} className="rounded border border-slate-200 p-2 text-sm">
-                  <p className="font-medium">{new Date(order.createdAt).toLocaleDateString("uz-UZ")} | {order.status}</p>
-                  <p className="text-xs text-slate-500">Jami: {order.totalQty}</p>
-                </div>
+                <button key={template.id} type="button" className="w-full rounded border border-slate-200 p-2 text-left text-sm" onClick={() => useTemplate(template.id)}>
+                  {template.name}
+                </button>
               ))}
             </div>
           </div>
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 border-t border-slate-300 bg-white/95 p-3 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <p className="text-sm font-semibold">Jami: {totalQty} dona</p>
-          <div className="grid flex-1 gap-2 md:grid-cols-4">
+      <div className="fixed inset-x-0 bottom-0 border-t border-slate-300 bg-white p-3">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+          <p className="text-sm font-semibold">{d["outlet.total"]}: {totalQty}</p>
+          <div className="grid flex-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <select value={deliveryType} onChange={(e) => setDeliveryType(e.target.value as "TODAY" | "TOMORROW" | "CUSTOM")}>
-              <option value="TODAY">Bugun</option>
-              <option value="TOMORROW">Ertaga</option>
-              <option value="CUSTOM">Aniq sana</option>
+              <option value="TODAY">{d["outlet.today"]}</option>
+              <option value="TOMORROW">{d["outlet.tomorrow"]}</option>
+              <option value="CUSTOM">{d["outlet.customDate"]}</option>
             </select>
             <input
               type="datetime-local"
@@ -309,9 +273,14 @@ export function OutletQuickOrder() {
               disabled={deliveryType !== "CUSTOM"}
               onChange={(e) => setCustomDate(e.target.value)}
             />
-            <input placeholder="Izoh (ixtiyoriy)" value={note} onChange={(e) => setNote(e.target.value)} />
-            <button className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-bold text-white" onClick={submitQuickOrder} disabled={saving} type="button">
-              Zakas berish
+            <input placeholder={d["outlet.note"]} value={note} onChange={(e) => setNote(e.target.value)} />
+            <button
+              className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-bold text-white"
+              onClick={submitQuickOrder}
+              disabled={saving}
+              type="button"
+            >
+              {d["outlet.sendOrder"]}
             </button>
           </div>
         </div>

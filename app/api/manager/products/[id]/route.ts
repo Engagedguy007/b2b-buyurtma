@@ -12,7 +12,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const { id } = await params;
-  const product = await prisma.product.update({
+  const product = await prisma.product.findFirst({ where: { id, companyId: guard.companyId } });
+  if (!product) return NextResponse.json({ error: "Mahsulot topilmadi" }, { status: 404 });
+
+  const updated = await prisma.product.update({
     where: { id },
     data: {
       ...parsed.data,
@@ -22,7 +25,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
   });
 
-  return NextResponse.json(product);
+  return NextResponse.json(updated);
 }
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -30,6 +33,9 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   if ("error" in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const { id } = await params;
+  const product = await prisma.product.findFirst({ where: { id, companyId: guard.companyId } });
+  if (!product) return NextResponse.json({ error: "Mahsulot topilmadi" }, { status: 404 });
+
   await prisma.product.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

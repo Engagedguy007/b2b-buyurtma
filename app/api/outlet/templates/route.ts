@@ -9,7 +9,7 @@ export async function GET() {
   if ("error" in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const templates = await prisma.orderTemplate.findMany({
-    where: { outletId: guard.session.user.id },
+    where: { companyId: guard.companyId, outletId: guard.session.user.id },
     include: { items: { include: { product: true } } },
     orderBy: { createdAt: "desc" }
   });
@@ -26,6 +26,7 @@ export async function POST(req: Request) {
 
   const template = await prisma.orderTemplate.create({
     data: {
+      companyId: guard.companyId,
       outletId: guard.session.user.id,
       name: parsed.data.name,
       items: { create: parsed.data.items }

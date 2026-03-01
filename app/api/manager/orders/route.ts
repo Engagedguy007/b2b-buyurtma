@@ -8,6 +8,7 @@ export async function GET() {
   if ("error" in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const orders = await prisma.order.findMany({
+    where: { companyId: guard.companyId },
     include: {
       outlet: { include: { outletProfile: true } },
       items: true,

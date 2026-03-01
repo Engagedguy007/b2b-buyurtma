@@ -13,7 +13,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const deliveryType = body.deliveryType || "TODAY";
 
   const template = await prisma.orderTemplate.findFirst({
-    where: { id, outletId: guard.session.user.id },
+    where: { id, companyId: guard.companyId, outletId: guard.session.user.id },
     include: { items: { include: { product: true } } }
   });
 
@@ -23,6 +23,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const order = await prisma.order.create({
     data: {
+      companyId: guard.companyId,
       outletId: guard.session.user.id,
       deliveryDate: resolveDeliveryDate(deliveryType, body.deliveryDate),
       note: body.note,

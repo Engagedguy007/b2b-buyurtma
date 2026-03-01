@@ -19,6 +19,8 @@ export async function middleware(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   if (!token) return NextResponse.redirect(new URL("/login", req.url));
 
+  if (!token.companyId) return NextResponse.redirect(new URL("/login", req.url));
+
   if (!canAccess(pathname, token.role as string | undefined)) {
     return NextResponse.redirect(new URL("/", req.url));
   }

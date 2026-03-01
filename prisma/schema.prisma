@@ -25,24 +25,53 @@ enum OrderStatus {
   REJECTED
 }
 
+enum Locale {
+  UZ
+  RU
+  EN
+}
+
+model Company {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  defaultLocale Locale   @default(UZ)
+  createdAt     DateTime @default(now())
+
+  users         User[]
+  outletProfiles OutletProfile[]
+  products      Product[]
+  orders        Order[]
+  templates     OrderTemplate[]
+  favorites     FavoriteProduct[]
+  invites       OutletInvite[]
+}
+
 model User {
   id           String   @id @default(cuid())
+  companyId    String
   name         String
   email        String   @unique
   passwordHash String
   role         UserRole
+  locale       Locale?
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
 
+  company       Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
   outletProfile OutletProfile?
-  outletOrders  Order[]   @relation("OutletOrders")
-  assignedOrders Order[]  @relation("AssignedCourier")
+  outletOrders  Order[]         @relation("OutletOrders")
+  assignedOrders Order[]        @relation("AssignedCourier")
   templates     OrderTemplate[]
   favorites     FavoriteProduct[]
+  createdInvites OutletInvite[] @relation("InviteCreator")
+
+  @@index([companyId, role])
 }
 
 model OutletProfile {
   id         String   @id @default(cuid())
+  companyId  String
   userId     String   @unique
   outletName String
   phone      String
@@ -50,13 +79,17 @@ model OutletProfile {
   region     String
   geo        String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, region])
 }
 
 model Product {
   id            String   @id @default(cuid())
+  companyId     String
   name          String
-  sku           String   @unique
+  sku           String
   unit          String
   price         Decimal? @db.Decimal(12, 2)
   isActive      Boolean  @default(true)
@@ -64,13 +97,18 @@ model Product {
   minOrderQty   Int?
   createdAt     DateTime @default(now())
 
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
   orderItems    OrderItem[]
   templateItems OrderTemplateItem[]
   favorites     FavoriteProduct[]
+
+  @@unique([companyId, sku])
+  @@index([companyId, isActive])
 }
 
 model Order {
   id                String      @id @default(cuid())
+  companyId         String
   outletId          String
   status            OrderStatus @default(NEW)
   deliveryDate      DateTime
@@ -81,21 +119,22 @@ model Order {
   assignedCourierId String?
   rejectionReason   String?
 
-  outlet            User        @relation("OutletOrders", fields: [outletId], references: [id], onDelete: Restrict)
-  assignedCourier   User?       @relation("AssignedCourier", fields: [assignedCourierId], references: [id], onDelete: SetNull)
-  items             OrderItem[]
+  company         Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  outlet          User    @relation("OutletOrders", fields: [outletId], references: [id], onDelete: Restrict)
+  assignedCourier User?   @relation("AssignedCourier", fields: [assignedCourierId], references: [id], onDelete: SetNull)
+  items           OrderItem[]
 
-  @@index([outletId, createdAt])
-  @@index([status, deliveryDate])
+  @@index([companyId, outletId, createdAt])
+  @@index([companyId, status, deliveryDate])
 }
 
 model OrderItem {
-  id           String   @id @default(cuid())
-  orderId       String
-  productId     String
-  qty           Int
-  unitSnapshot  String
-  nameSnapshot  String
+  id           String @id @default(cuid())
+  orderId      String
+  productId    String
+  qty          Int
+  unitSnapshot String
+  nameSnapshot String
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
@@ -104,22 +143,24 @@ model OrderItem {
 }
 
 model OrderTemplate {
-  id          String   @id @default(cuid())
-  outletId    String
-  name        String
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  companyId String
+  outletId  String
+  name      String
+  createdAt DateTime @default(now())
 
-  outlet User @relation(fields: [outletId], references: [id], onDelete: Cascade)
-  items  OrderTemplateItem[]
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  outlet  User    @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  items   OrderTemplateItem[]
 
-  @@index([outletId, createdAt])
+  @@index([companyId, outletId, createdAt])
 }
 
 model OrderTemplateItem {
-  id          String @id @default(cuid())
-  templateId  String
-  productId   String
-  qty         Int
+  id         String @id @default(cuid())
+  templateId String
+  productId  String
+  qty        Int
 
   template OrderTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   product  Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -129,11 +170,34 @@ model OrderTemplateItem {
 
 model FavoriteProduct {
   id        String @id @default(cuid())
+  companyId String
   outletId  String
   productId String
 
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
   outlet  User    @relation(fields: [outletId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([outletId, productId])
+  @@index([companyId, outletId])
+}
+
+model OutletInvite {
+  id         String   @id @default(cuid())
+  companyId  String
+  token      String   @unique
+  pinHash    String
+  outletName String
+  phone      String
+  address    String
+  region     String?
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+  createdById String
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  createdBy User    @relation("InviteCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([companyId, expiresAt])
 }

@@ -8,26 +8,27 @@ export async function GET() {
   if ("error" in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const outletId = guard.session.user.id;
+  const companyId = guard.companyId;
 
   const [profile, products, favorites, templates, lastOrder, history] = await Promise.all([
-    prisma.outletProfile.findUnique({ where: { userId: outletId } }),
-    prisma.product.findMany({ where: { isActive: true }, orderBy: { createdAt: "desc" } }),
-    prisma.favoriteProduct.findMany({ where: { outletId } }),
+    prisma.outletProfile.findFirst({ where: { userId: outletId, companyId } }),
+    prisma.product.findMany({ where: { companyId, isActive: true }, orderBy: { createdAt: "desc" } }),
+    prisma.favoriteProduct.findMany({ where: { companyId, outletId } }),
     prisma.orderTemplate.findMany({
-      where: { outletId },
+      where: { companyId, outletId },
       include: { items: { include: { product: true } } },
       orderBy: { createdAt: "desc" }
     }),
     prisma.order.findFirst({
-      where: { outletId },
+      where: { companyId, outletId },
       include: { items: true },
       orderBy: { createdAt: "desc" }
     }),
     prisma.order.findMany({
-      where: { outletId },
+      where: { companyId, outletId },
       include: { items: true },
       orderBy: { createdAt: "desc" },
-      take: 15
+      take: 20
     })
   ]);
 

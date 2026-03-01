@@ -1,4 +1,4 @@
-import { UserRole } from "@prisma/client";
+import { Locale, UserRole } from "@prisma/client";
 import { DefaultSession } from "next-auth";
 
 declare module "next-auth" {
@@ -7,12 +7,18 @@ declare module "next-auth" {
       id: string;
       role: UserRole;
       isActive: boolean;
+      companyId: string;
+      locale: Locale;
+      remember: boolean;
     } & DefaultSession["user"];
   }
 
   interface User {
     role: UserRole;
     isActive: boolean;
+    companyId: string;
+    locale: Locale;
+    remember: boolean;
   }
 }
 
@@ -21,5 +27,8 @@ declare module "next-auth/jwt" {
     id: string;
     role: UserRole;
     isActive: boolean;
+    companyId: string;
+    locale: Locale;
+    remember?: boolean;
   }
 }

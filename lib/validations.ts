@@ -50,5 +50,23 @@ export const productCreateSchema = z.object({
 export const productUpdateSchema = productCreateSchema.partial();
 
 export const courierStatusUpdateSchema = z.object({
-  status: z.enum(["PICKED_UP", "DELIVERED"])
+  status: z.enum(["PICKED_UP", "OUT_FOR_DELIVERY", "DELIVERED"])
+});
+
+export const inviteCreateSchema = z.object({
+  outletName: z.string().min(2).max(120),
+  phone: z.string().min(5).max(40),
+  address: z.string().min(5).max(200),
+  region: z.string().min(2).max(80).optional(),
+  expiresInDays: z.number().int().min(1).max(30).default(7)
+});
+
+export const inviteVerifySchema = z.object({
+  pin: z.string().regex(/^\d{4,6}$/)
+});
+
+export const inviteClaimSchema = z.object({
+  pin: z.string().regex(/^\d{4,6}$/),
+  name: z.string().min(2).max(80),
+  locale: z.enum(["UZ", "RU", "EN"]).default("UZ")
 });

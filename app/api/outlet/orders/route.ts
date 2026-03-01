@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/guards";
 import { quickOrderSchema } from "@/lib/validations";
 import { resolveDeliveryDate } from "@/lib/delivery";
+import { validateOrderItems } from "@/lib/order";
 
 export async function POST(req: Request) {
   const guard = await requireRole([UserRole.OUTLET]);
@@ -14,23 +15,19 @@ export async function POST(req: Request) {
 
   const { items, note, deliveryType, deliveryDate } = parsed.data;
   const outletId = guard.session.user.id;
-  const products = await prisma.product.findMany({ where: { id: { in: items.map((item) => item.productId) }, isActive: true } });
+  const companyId = guard.companyId;
+
+  const products = await prisma.product.findMany({
+    where: { companyId, id: { in: items.map((item) => item.productId) }, isActive: true }
+  });
   const productMap = new Map(products.map((product) => [product.id, product]));
 
-  for (const item of items) {
-    const product = productMap.get(item.productId);
-    if (!product) return NextResponse.json({ error: "Mahsulot topilmadi" }, { status: 404 });
-    if (product.minOrderQty && item.qty < product.minOrderQty) {
-      return NextResponse.json({ error: `${product.name}: kamida ${product.minOrderQty}` }, { status: 400 });
-    }
-    if (product.packSize && item.qty % product.packSize !== 0) {
-      return NextResponse.json({ error: `${product.name}: ${product.packSize} ga karrali bo'lsin` }, { status: 400 });
-    }
-  }
-
   try {
+    validateOrderItems(items, productMap);
+
     const order = await prisma.order.create({
       data: {
+        companyId,
         outletId,
         deliveryDate: resolveDeliveryDate(deliveryType, deliveryDate),
         note,
@@ -60,8 +57,9 @@ export async function GET() {
   if ("error" in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const outletId = guard.session.user.id;
+  const companyId = guard.companyId;
   const orders = await prisma.order.findMany({
-    where: { outletId },
+    where: { companyId, outletId },
     include: { items: true },
     orderBy: { createdAt: "desc" }
   });

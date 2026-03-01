@@ -1,31 +1,86 @@
-import { PrismaClient, UserRole, OrderStatus } from "@prisma/client";
+import { PrismaClient, UserRole, OrderStatus, Locale } from "@prisma/client";
 import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
 
-async function upsertUser(name: string, email: string, role: UserRole, password: string) {
-  const passwordHash = await bcrypt.hash(password, 10);
-  return prisma.user.upsert({
-    where: { email },
-    update: { name, role, passwordHash, isActive: true },
-    create: { name, email, role, passwordHash, isActive: true }
+async function upsertCompany(name: string, slug: string, defaultLocale: Locale) {
+  return prisma.company.upsert({
+    where: { slug },
+    update: { name, defaultLocale },
+    create: { name, slug, defaultLocale }
   });
 }
 
-async function main() {
-  const manager = await upsertUser("Manager Demo", "manager@demo.uz", UserRole.MANAGER, "Manager123!");
-  const courier = await upsertUser("Courier Demo", "courier@demo.uz", UserRole.COURIER, "Courier123!");
-  const outlet = await upsertUser("Outlet Demo", "outlet@demo.uz", UserRole.OUTLET, "Outlet123!");
+async function upsertUser(params: {
+  companyId: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  password: string;
+  locale?: Locale;
+}) {
+  const passwordHash = await bcrypt.hash(params.password, 10);
+  return prisma.user.upsert({
+    where: { email: params.email },
+    update: {
+      companyId: params.companyId,
+      name: params.name,
+      role: params.role,
+      passwordHash,
+      isActive: true,
+      locale: params.locale || null
+    },
+    create: {
+      companyId: params.companyId,
+      name: params.name,
+      email: params.email,
+      role: params.role,
+      passwordHash,
+      isActive: true,
+      locale: params.locale || null
+    }
+  });
+}
+
+async function seedPrimaryCompany() {
+  const company = await upsertCompany("Samarqand Foods", "samarqand-foods", Locale.UZ);
+
+  const manager = await upsertUser({
+    companyId: company.id,
+    name: "Manager Demo",
+    email: "manager@demo.uz",
+    role: UserRole.MANAGER,
+    password: "Manager123!",
+    locale: Locale.UZ
+  });
+  const courier = await upsertUser({
+    companyId: company.id,
+    name: "Courier Demo",
+    email: "courier@demo.uz",
+    role: UserRole.COURIER,
+    password: "Courier123!",
+    locale: Locale.UZ
+  });
+  const outlet = await upsertUser({
+    companyId: company.id,
+    name: "Outlet Demo",
+    email: "outlet@demo.uz",
+    role: UserRole.OUTLET,
+    password: "Outlet123!",
+    locale: Locale.UZ
+  });
 
   await prisma.outletProfile.upsert({
     where: { userId: outlet.id },
     update: {
+      companyId: company.id,
       outletName: "Samarqand Mini Market",
       phone: "+998901234567",
       address: "Samarqand sh., Registon ko'chasi 24",
       region: "Samarqand"
     },
     create: {
+      companyId: company.id,
       userId: outlet.id,
       outletName: "Samarqand Mini Market",
       phone: "+998901234567",
@@ -45,38 +100,45 @@ async function main() {
     { name: "Choy", sku: "TEA-001", unit: "quti", isActive: true, packSize: null, minOrderQty: 1 },
     { name: "Qahva", sku: "COF-001", unit: "quti", isActive: true, packSize: null, minOrderQty: 1 },
     { name: "Pechenye", sku: "COO-001", unit: "quti", isActive: true, packSize: 8, minOrderQty: 8 }
-  ];
+  ] as const;
 
-  const createdProducts = [] as { id: string; name: string; unit: string }[];
-
+  const createdProducts: { id: string; name: string; unit: string }[] = [];
   for (const product of products) {
     const upserted = await prisma.product.upsert({
-      where: { sku: product.sku },
+      where: { companyId_sku: { companyId: company.id, sku: product.sku } },
       update: product,
-      create: { ...product, price: null }
+      create: {
+        companyId: company.id,
+        name: product.name,
+        sku: product.sku,
+        unit: product.unit,
+        isActive: product.isActive,
+        packSize: product.packSize,
+        minOrderQty: product.minOrderQty,
+        price: null
+      }
     });
     createdProducts.push({ id: upserted.id, name: upserted.name, unit: upserted.unit });
   }
 
   await prisma.favoriteProduct.createMany({
     data: [
-      { outletId: outlet.id, productId: createdProducts[0].id },
-      { outletId: outlet.id, productId: createdProducts[2].id },
-      { outletId: outlet.id, productId: createdProducts[5].id }
+      { companyId: company.id, outletId: outlet.id, productId: createdProducts[0].id },
+      { companyId: company.id, outletId: outlet.id, productId: createdProducts[2].id },
+      { companyId: company.id, outletId: outlet.id, productId: createdProducts[5].id }
     ],
     skipDuplicates: true
   });
 
   const template = await prisma.orderTemplate.upsert({
     where: { id: "demo-weekly-template" },
-    update: { name: "Haftalik asosiy zakas", outletId: outlet.id },
+    update: { companyId: company.id, name: "Haftalik asosiy zakas", outletId: outlet.id },
     create: {
       id: "demo-weekly-template",
+      companyId: company.id,
       name: "Haftalik asosiy zakas",
       outletId: outlet.id
     }
-  }).catch(async () => {
-    return prisma.orderTemplate.findFirstOrThrow({ where: { outletId: outlet.id, name: "Haftalik asosiy zakas" } });
   });
 
   await prisma.orderTemplateItem.deleteMany({ where: { templateId: template.id } });
@@ -88,10 +150,11 @@ async function main() {
     ]
   });
 
-  const orderCount = await prisma.order.count({ where: { outletId: outlet.id } });
+  const orderCount = await prisma.order.count({ where: { companyId: company.id, outletId: outlet.id } });
   if (orderCount === 0) {
     await prisma.order.create({
       data: {
+        companyId: company.id,
         outletId: outlet.id,
         status: OrderStatus.DELIVERED,
         deliveryDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
@@ -111,6 +174,7 @@ async function main() {
 
     await prisma.order.create({
       data: {
+        companyId: company.id,
         outletId: outlet.id,
         status: OrderStatus.NEW,
         deliveryDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -127,10 +191,71 @@ async function main() {
     });
   }
 
+  const invitePinHash = await bcrypt.hash("4455", 10);
+  await prisma.outletInvite.upsert({
+    where: { token: "demo-join-token" },
+    update: {
+      companyId: company.id,
+      pinHash: invitePinHash,
+      outletName: "Yangi Outlet",
+      phone: "+998909999000",
+      address: "Samarqand sh., Bog'ishamol 12",
+      region: "Samarqand",
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      usedAt: null,
+      createdById: manager.id
+    },
+    create: {
+      token: "demo-join-token",
+      companyId: company.id,
+      pinHash: invitePinHash,
+      outletName: "Yangi Outlet",
+      phone: "+998909999000",
+      address: "Samarqand sh., Bog'ishamol 12",
+      region: "Samarqand",
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      createdById: manager.id
+    }
+  });
+
+  return { manager, courier, outlet, company };
+}
+
+async function seedSecondaryCompany() {
+  const company = await upsertCompany("Tashkent Drinks", "tashkent-drinks", Locale.RU);
+  await upsertUser({
+    companyId: company.id,
+    name: "Second Manager",
+    email: "manager2@demo.uz",
+    role: UserRole.MANAGER,
+    password: "Manager123!",
+    locale: Locale.RU
+  });
+
+  await prisma.product.upsert({
+    where: { companyId_sku: { companyId: company.id, sku: "TD-001" } },
+    update: { name: "Лимонад 1L", unit: "шт", isActive: true },
+    create: {
+      companyId: company.id,
+      name: "Лимонад 1L",
+      sku: "TD-001",
+      unit: "шт",
+      isActive: true,
+      price: null
+    }
+  });
+}
+
+async function main() {
+  const primary = await seedPrimaryCompany();
+  await seedSecondaryCompany();
+
   console.log("Seed yakunlandi");
-  console.log(`Manager: ${manager.email} / Manager123!`);
-  console.log(`Outlet: ${outlet.email} / Outlet123!`);
-  console.log(`Courier: ${courier.email} / Courier123!`);
+  console.log(`Company: ${primary.company.slug}`);
+  console.log(`Manager: ${primary.manager.email} / Manager123!`);
+  console.log(`Outlet: ${primary.outlet.email} / Outlet123!`);
+  console.log(`Courier: ${primary.courier.email} / Courier123!`);
+  console.log("Demo invite: /join/demo-join-token (PIN: 4455)");
 }
 
 main()
