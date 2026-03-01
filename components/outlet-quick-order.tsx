@@ -36,7 +36,7 @@ export function OutletQuickOrder({ locale }: { locale: AppLocale }) {
   const [note, setNote] = useState("");
   const [templateName, setTemplateName] = useState("Haftalik zakas");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [hint, setHint] = useState("");
 
   async function load() {
     setLoading(true);
@@ -62,8 +62,31 @@ export function OutletQuickOrder({ locale }: { locale: AppLocale }) {
 
   const totalQty = useMemo(() => Object.values(qtyMap).reduce((sum, qty) => sum + qty, 0), [qtyMap]);
 
-  const setQty = (productId: string, value: number) => {
-    setQtyMap((prev) => ({ ...prev, [productId]: Math.max(0, value) }));
+  function normalizeQty(rawQty: number, product: Product) {
+    let qty = Math.max(0, Math.floor(rawQty));
+    if (qty === 0) return 0;
+    if (product.minOrderQty && qty < product.minOrderQty) qty = product.minOrderQty;
+    if (product.packSize && qty % product.packSize !== 0) qty = Math.ceil(qty / product.packSize) * product.packSize;
+    return qty;
+  }
+
+  function normalizeAllQty(current: Record<string, number>) {
+    if (!data) return current;
+    const productMap = new Map(data.products.map((p) => [p.id, p]));
+    const next: Record<string, number> = {};
+
+    for (const [productId, qty] of Object.entries(current)) {
+      const product = productMap.get(productId);
+      if (!product) continue;
+      const normalized = normalizeQty(qty, product);
+      if (normalized > 0) next[productId] = normalized;
+    }
+    return next;
+  }
+
+  const setQty = (product: Product, value: number, mode: "live" | "final" = "live") => {
+    const nextValue = mode === "final" ? normalizeQty(value, product) : Math.max(0, Math.floor(value));
+    setQtyMap((prev) => ({ ...prev, [product.id]: nextValue }));
   };
 
   const items = useMemo(
@@ -75,9 +98,13 @@ export function OutletQuickOrder({ locale }: { locale: AppLocale }) {
   );
 
   async function submitQuickOrder() {
-    setError("");
-    if (items.length === 0) {
-      setError("Kamida bitta mahsulot tanlang");
+    setHint("");
+    const prevMap = qtyMap;
+    const normalizedMap = normalizeAllQty(qtyMap);
+    setQtyMap(normalizedMap);
+    const normalizedItems = Object.entries(normalizedMap).map(([productId, qty]) => ({ productId, qty }));
+
+    if (normalizedItems.length === 0) {
       return;
     }
 
@@ -86,7 +113,7 @@ export function OutletQuickOrder({ locale }: { locale: AppLocale }) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        items,
+        items: normalizedItems,
         deliveryType,
         deliveryDate: deliveryType === "CUSTOM" ? customDate : undefined,
         note
@@ -97,12 +124,15 @@ export function OutletQuickOrder({ locale }: { locale: AppLocale }) {
     setSaving(false);
 
     if (!res.ok) {
-      setError(json.error || "Xatolik");
+      setHint(json.error || "");
       return;
     }
 
     setQtyMap({});
     setNote("");
+    if (JSON.stringify(prevMap) !== JSON.stringify(normalizedMap)) {
+      setHint("Miqdorlar avtomatik moslashtirildi.");
+    }
     await load();
   }
 
@@ -128,15 +158,19 @@ export function OutletQuickOrder({ locale }: { locale: AppLocale }) {
   }
 
   async function saveTemplate() {
-    if (items.length === 0) {
-      setError("Shablon uchun mahsulot tanlang");
+    const normalizedMap = normalizeAllQty(qtyMap);
+    setQtyMap(normalizedMap);
+    const normalizedItems = Object.entries(normalizedMap).map(([productId, qty]) => ({ productId, qty }));
+
+    if (normalizedItems.length === 0) {
+      setHint("");
       return;
     }
 
     const res = await fetch("/api/outlet/templates", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: templateName, items })
+      body: JSON.stringify({ name: templateName, items: normalizedItems })
     });
     if (res.ok) await load();
   }
@@ -208,15 +242,22 @@ export function OutletQuickOrder({ locale }: { locale: AppLocale }) {
                     <p className="text-xs text-slate-500">
                       {product.unit}
                       {product.minOrderQty ? ` | min ${product.minOrderQty}` : ""}
-                      {product.packSize ? ` | pack ${product.packSize}` : ""}
+                      {product.packSize ? ` | Quti: ${product.packSize} dona` : ""}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button type="button" className="rounded bg-slate-200 px-3 py-1.5 text-lg" onClick={() => setQty(product.id, qty - 1)}>
+                    <button type="button" className="rounded bg-slate-200 px-3 py-1.5 text-lg" onClick={() => setQty(product, qty - 1)}>
                       -
                     </button>
-                    <span className="min-w-8 text-center text-lg font-bold">{qty}</span>
-                    <button type="button" className="rounded bg-slate-900 px-3 py-1.5 text-lg text-white" onClick={() => setQty(product.id, qty + 1)}>
+                    <input
+                      type="number"
+                      min={0}
+                      value={qty}
+                      className="w-20 text-center text-lg font-bold"
+                      onChange={(e) => setQty(product, Number(e.target.value || 0))}
+                      onBlur={(e) => setQty(product, Number(e.target.value || 0), "final")}
+                    />
+                    <button type="button" className="rounded bg-slate-900 px-3 py-1.5 text-lg text-white" onClick={() => setQty(product, qty + 1)}>
                       +
                     </button>
                     <button type="button" className="px-2 text-xl" onClick={() => toggleFavorite(product.id, !product.isFavorite)}>
@@ -277,14 +318,14 @@ export function OutletQuickOrder({ locale }: { locale: AppLocale }) {
             <button
               className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-bold text-white"
               onClick={submitQuickOrder}
-              disabled={saving}
+              disabled={saving || totalQty === 0}
               type="button"
             >
               {d["outlet.sendOrder"]}
             </button>
           </div>
         </div>
-        {error ? <p className="mx-auto mt-2 w-full max-w-6xl text-sm text-red-600">{error}</p> : null}
+        {hint ? <p className="mx-auto mt-2 w-full max-w-6xl text-sm text-slate-600">{hint}</p> : null}
       </div>
     </div>
   );

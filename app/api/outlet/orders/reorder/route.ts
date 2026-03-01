@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/guards";
 import { reorderSchema } from "@/lib/validations";
 import { resolveDeliveryDate } from "@/lib/delivery";
-import { validateOrderItems } from "@/lib/order";
+import { normalizeOrderItems } from "@/lib/order";
 
 export async function POST(req: Request) {
   const guard = await requireRole([UserRole.OUTLET]);
@@ -32,7 +32,10 @@ export async function POST(req: Request) {
   const productMap = new Map(products.map((product) => [product.id, product]));
 
   try {
-    validateOrderItems(items, productMap);
+    const normalizedItems = normalizeOrderItems(items, productMap);
+    if (normalizedItems.length === 0) {
+      return NextResponse.json({ error: "Mahsulot topilmadi" }, { status: 400 });
+    }
 
     const order = await prisma.order.create({
       data: {
@@ -40,9 +43,9 @@ export async function POST(req: Request) {
         outletId,
         deliveryDate: resolveDeliveryDate(parsed.data.deliveryType, parsed.data.deliveryDate),
         note: parsed.data.note,
-        totalQty: items.reduce((sum, item) => sum + item.qty, 0),
+        totalQty: normalizedItems.reduce((sum, item) => sum + item.qty, 0),
         items: {
-          create: items.map((item) => {
+          create: normalizedItems.map((item) => {
             const product = productMap.get(item.productId)!;
             return {
               productId: product.id,
