@@ -29,9 +29,9 @@ export async function AppHeader() {
               </Link>
             </>
           )}
-          {role === "MANAGER" && (
-            <Link href="/manager" className="text-sm text-slate-700">
-              {t(locale, "header.manager")}
+          {role === "OWNER" && (
+            <Link href="/owner" className="text-sm text-slate-700">
+              {t(locale, "header.owner")}
             </Link>
           )}
           {role === "COURIER" && (
@@ -39,6 +39,11 @@ export async function AppHeader() {
               {t(locale, "header.courier")}
             </Link>
           )}
+          {session?.user ? (
+            <Link href="/profile" className="text-sm text-slate-700">
+              {t(locale, "common.profile")}
+            </Link>
+          ) : null}
           <LocaleSwitcher initialLocale={locale} />
           {session?.user ? (
             <LogoutButton label={t(locale, "common.logout")} />

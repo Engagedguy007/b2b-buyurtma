@@ -1,10 +1,11 @@
 {
   "common.login": "Kirish",
   "common.logout": "Chiqish",
+  "common.profile": "Profil",
   "header.quickOrder": "Tez zakas",
   "header.orders": "Buyurtmalar",
   "header.courier": "Kurer",
-  "header.manager": "Manager",
+  "header.owner": "Owner",
   "outlet.title": "Tez zakas",
   "outlet.search": "Qidiruv...",
   "outlet.favorites": "Sevimlilar",
@@ -36,5 +37,14 @@
   "join.name": "Ism",
   "join.continue": "Davom etish",
   "manager.invites": "Outlet takliflari",
-  "manager.createInvite": "Taklif yaratish"
+  "manager.createInvite": "Taklif yaratish",
+  "status.new": "Yangi",
+  "status.confirmed": "Qabul qilindi",
+  "status.inProduction": "Tayyorlanmoqda",
+  "status.ready": "Tayyor",
+  "status.assigned": "Biriktirilgan",
+  "status.pickedUp": "Qabul qildim",
+  "status.onWay": "Yo'lda",
+  "status.delivered": "Yetkazildi",
+  "status.rejected": "Rad etildi"
 }

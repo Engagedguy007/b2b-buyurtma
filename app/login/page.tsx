@@ -8,9 +8,10 @@ export default function LoginPage() {
       <div className="card text-sm text-slate-700">
         <p className="font-semibold">Demo loginlar</p>
         <p>outlet@demo.uz / Outlet123!</p>
-        <p>manager@demo.uz / Manager123!</p>
+        <p>owner@demo.uz / Owner123!</p>
         <p>courier@demo.uz / Courier123!</p>
         <p className="mt-2">Invite demo: <Link href="/join/demo-join-token" className="underline">/join/demo-join-token</Link> (PIN: 4455)</p>
+        <p className="mt-2">Yangi account: <Link href="/signup" className="underline">/signup</Link></p>
       </div>
     </div>
   );

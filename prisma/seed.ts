@@ -15,6 +15,7 @@ async function upsertUser(params: {
   companyId: string;
   name: string;
   email: string;
+  phone?: string;
   role: UserRole;
   password: string;
   locale?: Locale;
@@ -25,6 +26,7 @@ async function upsertUser(params: {
     update: {
       companyId: params.companyId,
       name: params.name,
+      phone: params.phone || null,
       role: params.role,
       passwordHash,
       isActive: true,
@@ -34,6 +36,7 @@ async function upsertUser(params: {
       companyId: params.companyId,
       name: params.name,
       email: params.email,
+      phone: params.phone || null,
       role: params.role,
       passwordHash,
       isActive: true,
@@ -45,18 +48,20 @@ async function upsertUser(params: {
 async function seedPrimaryCompany() {
   const company = await upsertCompany("Samarqand Foods", "samarqand-foods", Locale.UZ);
 
-  const manager = await upsertUser({
+  const owner = await upsertUser({
     companyId: company.id,
-    name: "Manager Demo",
-    email: "manager@demo.uz",
-    role: UserRole.MANAGER,
-    password: "Manager123!",
+    name: "Owner Demo",
+    email: "owner@demo.uz",
+    phone: "+998901111111",
+    role: UserRole.OWNER,
+    password: "Owner123!",
     locale: Locale.UZ
   });
   const courier = await upsertUser({
     companyId: company.id,
     name: "Courier Demo",
     email: "courier@demo.uz",
+    phone: "+998902222222",
     role: UserRole.COURIER,
     password: "Courier123!",
     locale: Locale.UZ
@@ -65,6 +70,7 @@ async function seedPrimaryCompany() {
     companyId: company.id,
     name: "Outlet Demo",
     email: "outlet@demo.uz",
+    phone: "+998903333333",
     role: UserRole.OUTLET,
     password: "Outlet123!",
     locale: Locale.UZ
@@ -203,7 +209,7 @@ async function seedPrimaryCompany() {
       region: "Samarqand",
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       usedAt: null,
-      createdById: manager.id
+      createdById: owner.id
     },
     create: {
       token: "demo-join-token",
@@ -214,21 +220,22 @@ async function seedPrimaryCompany() {
       address: "Samarqand sh., Bog'ishamol 12",
       region: "Samarqand",
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      createdById: manager.id
+      createdById: owner.id
     }
   });
 
-  return { manager, courier, outlet, company };
+  return { owner, courier, outlet, company };
 }
 
 async function seedSecondaryCompany() {
   const company = await upsertCompany("Tashkent Drinks", "tashkent-drinks", Locale.RU);
   await upsertUser({
     companyId: company.id,
-    name: "Second Manager",
-    email: "manager2@demo.uz",
-    role: UserRole.MANAGER,
-    password: "Manager123!",
+    name: "Second Owner",
+    email: "owner2@demo.uz",
+    phone: "+998904444444",
+    role: UserRole.OWNER,
+    password: "Owner123!",
     locale: Locale.RU
   });
 
@@ -252,7 +259,7 @@ async function main() {
 
   console.log("Seed yakunlandi");
   console.log(`Company: ${primary.company.slug}`);
-  console.log(`Manager: ${primary.manager.email} / Manager123!`);
+  console.log(`Owner: ${primary.owner.email} / Owner123!`);
   console.log(`Outlet: ${primary.outlet.email} / Outlet123!`);
   console.log(`Courier: ${primary.courier.email} / Courier123!`);
   console.log("Demo invite: /join/demo-join-token (PIN: 4455)");

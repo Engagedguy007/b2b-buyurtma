@@ -2,14 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --brand-primary: #0f766e;
+  --brand-primary-strong: #0d5f59;
+  --brand-accent: #2563eb;
+  --bg-soft: #f3f7fb;
+}
+
 body {
-  @apply bg-slate-50 text-slate-900;
+  background:
+    radial-gradient(1200px 500px at 5% -10%, rgba(16, 185, 129, 0.14), transparent 60%),
+    radial-gradient(900px 450px at 95% 0%, rgba(37, 99, 235, 0.12), transparent 60%),
+    var(--bg-soft);
+  @apply text-slate-900;
 }
 
 input,
 select,
 textarea {
-  @apply w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-700;
+  @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100;
 }
 
 button:disabled {
@@ -17,5 +28,5 @@ button:disabled {
 }
 
 .card {
-  @apply rounded-xl border border-slate-200 bg-white p-4 shadow-sm;
+  @apply rounded-xl border border-slate-200 bg-white p-4 shadow-md;
 }

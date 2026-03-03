@@ -1,10 +1,11 @@
 {
   "common.login": "Login",
   "common.logout": "Logout",
+  "common.profile": "Profile",
   "header.quickOrder": "Quick Order",
   "header.orders": "Orders",
   "header.courier": "Courier",
-  "header.manager": "Manager",
+  "header.owner": "Owner",
   "outlet.title": "Quick Order",
   "outlet.search": "Search...",
   "outlet.favorites": "Favorites",
@@ -36,5 +37,14 @@
   "join.name": "Name",
   "join.continue": "Continue",
   "manager.invites": "Outlet invites",
-  "manager.createInvite": "Create invite"
+  "manager.createInvite": "Create invite",
+  "status.new": "New",
+  "status.confirmed": "Accepted",
+  "status.inProduction": "In production",
+  "status.ready": "Ready",
+  "status.assigned": "Assigned",
+  "status.pickedUp": "Picked up",
+  "status.onWay": "On the way",
+  "status.delivered": "Delivered",
+  "status.rejected": "Rejected"
 }

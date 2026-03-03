@@ -1,10 +1,11 @@
 {
   "common.login": "Войти",
   "common.logout": "Выйти",
+  "common.profile": "Профиль",
   "header.quickOrder": "Быстрый заказ",
   "header.orders": "Заказы",
   "header.courier": "Курьер",
-  "header.manager": "Менеджер",
+  "header.owner": "Владелец",
   "outlet.title": "Быстрый заказ",
   "outlet.search": "Поиск...",
   "outlet.favorites": "Избранное",
@@ -36,5 +37,14 @@
   "join.name": "Имя",
   "join.continue": "Продолжить",
   "manager.invites": "Приглашения outlet",
-  "manager.createInvite": "Создать приглашение"
+  "manager.createInvite": "Создать приглашение",
+  "status.new": "Новый",
+  "status.confirmed": "Принят",
+  "status.inProduction": "Готовится",
+  "status.ready": "Готов",
+  "status.assigned": "Назначен",
+  "status.pickedUp": "Принял",
+  "status.onWay": "В пути",
+  "status.delivered": "Доставлен",
+  "status.rejected": "Отклонен"
 }

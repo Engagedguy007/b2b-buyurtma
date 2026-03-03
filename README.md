@@ -12,7 +12,7 @@ Next.js App Router asosidagi multi-tenant B2B buyurtma platforma.
 
 ## Asosiy imkoniyatlar
 - Multi-tenant (`Company`) izolatsiya: har kompaniya ma'lumotlari alohida scope.
-- Role-based access: `OUTLET`, `MANAGER`, `COURIER`.
+- Role-based access: `OUTLET`, `OWNER`, `COURIER`.
 - Outlet Quick Order (10-20 soniya oqim): stepper, sticky action, reorder, templates.
 - Outlet tracking: `Qabul qilindi -> Tayyorlanmoqda -> Yo'lda -> Yetkazildi`.
 - Courier soddalashtirilgan UX:
@@ -63,7 +63,7 @@ npm run dev
 
 ## Demo loginlar
 - Outlet: `outlet@demo.uz / Outlet123!`
-- Manager: `manager@demo.uz / Manager123!`
+- Manager: `manager@demo.uz / Owner123!`
 - Courier: `courier@demo.uz / Courier123!`
 
 ## Demo invite
@@ -86,12 +86,12 @@ npm run dev
 - call/maps link ochilishini tekshiring
 
 4. Manager flow:
-- `/manager`
+- `/owner`
 - order status update, courier assign
 - invite yaratish (`token + pin`) va list ko'rinishi
 
 5. Multi-tenant isolation:
-- `manager2@demo.uz / Manager123!` bilan kirib boshqa company ma'lumotlari chiqmasligini tekshiring
+- `manager2@demo.uz / Owner123!` bilan kirib boshqa company ma'lumotlari chiqmasligini tekshiring
 
 6. Language switch:
 - Headerdan UZ/RU/EN almashtiring

@@ -3,6 +3,7 @@ import { type NextAuthOptions, getServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt";
 import { prisma } from "@/lib/prisma";
+import { normalizePhone } from "@/lib/otp";
 
 const LONG_MAX_AGE = 60 * 24 * 60 * 60;
 const SHORT_MAX_AGE = 24 * 60 * 60;
@@ -18,15 +19,16 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        email: { label: "Email yoki telefon", type: "text" },
         password: { label: "Parol", type: "password" },
         remember: { label: "Remember", type: "text" }
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+        const identifier = credentials.email.trim();
+        const user = await prisma.user.findFirst({
+          where: identifier.includes("@") ? { email: identifier } : { phone: normalizePhone(identifier) },
           include: { company: true }
         });
 

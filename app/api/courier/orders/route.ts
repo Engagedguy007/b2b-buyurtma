@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/guards";
+import { optimizeCourierRoute } from "@/lib/ai";
 
 export async function GET() {
   const guard = await requireRole([UserRole.COURIER]);
@@ -16,5 +17,6 @@ export async function GET() {
     orderBy: { deliveryDate: "asc" }
   });
 
-  return NextResponse.json(orders);
+  const suggestedRoute = optimizeCourierRoute(orders);
+  return NextResponse.json({ orders, suggestedRoute });
 }

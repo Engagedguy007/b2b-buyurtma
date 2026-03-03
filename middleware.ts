@@ -5,14 +5,14 @@ import type { NextRequest } from "next/server";
 function canAccess(pathname: string, role?: string) {
   if (!role) return false;
   if (pathname.startsWith("/outlet")) return role === "OUTLET";
-  if (pathname.startsWith("/manager")) return role === "MANAGER";
+  if (pathname.startsWith("/owner") || pathname.startsWith("/manager")) return role === "OWNER";
   if (pathname.startsWith("/courier")) return role === "COURIER";
   return true;
 }
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const protectedRoute = ["/outlet", "/manager", "/courier"].some((prefix) => pathname.startsWith(prefix));
+  const protectedRoute = ["/outlet", "/owner", "/manager", "/courier", "/profile"].some((prefix) => pathname.startsWith(prefix));
 
   if (!protectedRoute) return NextResponse.next();
 
@@ -29,5 +29,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/outlet/:path*", "/manager/:path*", "/courier/:path*"]
+  matcher: ["/outlet/:path*", "/owner/:path*", "/manager/:path*", "/courier/:path*", "/profile/:path*"]
 };

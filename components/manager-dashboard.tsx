@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Courier = { id: string; name: string; email: string };
 
@@ -34,6 +34,7 @@ type Invite = {
   expiresAt: string;
   usedAt: string | null;
 };
+type ForecastProduct = { productId: string; productName: string; points: Array<{ date: string; qty: number }> };
 
 const statuses = [
   "NEW",
@@ -56,6 +57,8 @@ export function ManagerDashboard() {
   const [newProduct, setNewProduct] = useState({ name: "", sku: "", unit: "dona" });
   const [inviteForm, setInviteForm] = useState({ outletName: "", phone: "", address: "", region: "", expiresInDays: 7 });
   const [createdInvite, setCreatedInvite] = useState<{ token: string; pin: string; joinUrl: string } | null>(null);
+  const [forecast, setForecast] = useState<ForecastProduct[]>([]);
+  const forecastCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const load = async () => {
     const [ordersRes, productsRes, couriersRes, invitesRes] = await Promise.all([
@@ -69,6 +72,10 @@ export function ManagerDashboard() {
     setProducts(await productsRes.json());
     setCouriers(await couriersRes.json());
     setInvites(await invitesRes.json());
+
+    const forecastRes = await fetch("/api/manager/forecast?days=7", { cache: "no-store" });
+    const forecastJson = await forecastRes.json();
+    setForecast((forecastJson.forecast || []) as ForecastProduct[]);
   };
 
   useEffect(() => {
@@ -81,6 +88,42 @@ export function ManagerDashboard() {
       activeCount: orders.filter((o) => !["DELIVERED", "REJECTED"].includes(o.status)).length
     };
   }, [orders]);
+
+  useEffect(() => {
+    let chart: { destroy: () => void } | null = null;
+
+    async function draw() {
+      if (!forecastCanvasRef.current || forecast.length === 0) return;
+      const module = await import("chart.js/auto");
+      const Chart = module.default;
+      if (!Chart) return;
+
+      const labels = forecast[0]?.points.map((point) => point.date.slice(5)) || [];
+      const datasets = forecast.slice(0, 4).map((item, idx) => {
+        const palette = ["#10b981", "#2563eb", "#f59e0b", "#ef4444"];
+        return {
+          label: item.productName,
+          data: item.points.map((point) => point.qty),
+          borderColor: palette[idx % palette.length],
+          backgroundColor: palette[idx % palette.length],
+          tension: 0.35
+        };
+      });
+
+      chart = new Chart(forecastCanvasRef.current, {
+        type: "line",
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: "bottom" } }
+        }
+      });
+    }
+
+    draw();
+    return () => chart?.destroy();
+  }, [forecast]);
 
   const updateOrder = async (orderId: string, payload: Record<string, unknown>) => {
     await fetch(`/api/manager/orders/${orderId}`, {
@@ -129,8 +172,15 @@ export function ManagerDashboard() {
   return (
     <div className="space-y-4">
       <div className="card flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold">Manager dashboard</h1>
+        <h1 className="text-xl font-bold">Owner dashboard</h1>
         <p className="text-sm text-slate-600">Yangi: {stats.newCount} | Jarayonda: {stats.activeCount}</p>
+      </div>
+
+      <div className="card space-y-2">
+        <p className="font-semibold">AI Demand Forecast (7 kun)</p>
+        <div className="h-56">
+          <canvas ref={forecastCanvasRef} />
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">

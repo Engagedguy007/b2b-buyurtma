@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getDictionary, type AppLocale } from "@/lib/i18n";
+import { getDictionary, tStatus, type AppLocale } from "@/lib/i18n";
 
 type Order = {
   id: string;
@@ -35,6 +35,8 @@ export function OutletOrdersTracking({ locale }: { locale: AppLocale }) {
   const d = getDictionary(locale);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"ACTIVE" | "DELIVERED">("ACTIVE");
+  const [openOrderId, setOpenOrderId] = useState<string | null>(null);
 
   async function load() {
     const res = await fetch("/api/outlet/orders", { cache: "no-store" });
@@ -51,22 +53,35 @@ export function OutletOrdersTracking({ locale }: { locale: AppLocale }) {
 
   if (loading) return <div className="card">Yuklanmoqda...</div>;
 
+  const visibleOrders = orders.filter((order) =>
+    filter === "ACTIVE" ? !["DELIVERED", "REJECTED"].includes(order.status) : order.status === "DELIVERED"
+  );
+
   return (
     <div className="space-y-3">
-      <div className="card flex items-center justify-between">
+      <div className="card flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-bold">{d["outlet.tracking"]}</h1>
-        <button type="button" onClick={load} className="rounded bg-slate-200 px-3 py-2 text-sm">
-          Refresh
-        </button>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setFilter("ACTIVE")} className={`rounded px-3 py-2 text-sm ${filter === "ACTIVE" ? "bg-slate-900 text-white" : "bg-slate-200"}`}>
+            Faol
+          </button>
+          <button type="button" onClick={() => setFilter("DELIVERED")} className={`rounded px-3 py-2 text-sm ${filter === "DELIVERED" ? "bg-slate-900 text-white" : "bg-slate-200"}`}>
+            Yetkazilgan
+          </button>
+          <button type="button" onClick={load} className="rounded bg-slate-200 px-3 py-2 text-sm">
+            Refresh
+          </button>
+        </div>
       </div>
 
-      {orders.map((order) => {
+      {visibleOrders.map((order) => {
         const completed = completedStages(order.status);
+        const isOpen = openOrderId === order.id;
         return (
           <div key={order.id} className="card space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="font-semibold">#{order.id.slice(-6)} | {new Date(order.createdAt).toLocaleString("uz-UZ")}</p>
-              <p className="text-sm">{order.totalQty} dona</p>
+              <p className="text-sm">{order.totalQty} dona | {tStatus(locale, order.status)}</p>
             </div>
 
             <div className="grid gap-2 sm:grid-cols-4">
@@ -84,13 +99,22 @@ export function OutletOrdersTracking({ locale }: { locale: AppLocale }) {
               </div>
             </div>
 
-            <div className="rounded border border-slate-200 p-2 text-sm">
-              {order.items.map((item) => (
-                <p key={item.id}>
-                  {item.nameSnapshot}: {item.qty} {item.unitSnapshot}
-                </p>
-              ))}
-            </div>
+            <button
+              type="button"
+              className="w-full rounded border border-slate-200 px-3 py-2 text-left text-sm"
+              onClick={() => setOpenOrderId(isOpen ? null : order.id)}
+            >
+              {isOpen ? "Yopish" : "Tarkibni ko'rish"}
+            </button>
+            {isOpen ? (
+              <div className="rounded border border-slate-200 p-2 text-sm">
+                {order.items.map((item) => (
+                  <p key={item.id}>
+                    {item.nameSnapshot}: {item.qty} {item.unitSnapshot}
+                  </p>
+                ))}
+              </div>
+            ) : null}
           </div>
         );
       })}

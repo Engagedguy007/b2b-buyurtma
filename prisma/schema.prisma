@@ -9,7 +9,7 @@ datasource db {
 
 enum UserRole {
   OUTLET
-  MANAGER
+  OWNER
   COURIER
 }
 
@@ -52,6 +52,7 @@ model User {
   companyId    String
   name         String
   email        String   @unique
+  phone        String?  @unique
   passwordHash String
   role         UserRole
   locale       Locale?
@@ -67,6 +68,18 @@ model User {
   createdInvites OutletInvite[] @relation("InviteCreator")
 
   @@index([companyId, role])
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  phone     String
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([phone, createdAt])
 }
 
 model OutletProfile {

@@ -11,7 +11,7 @@ function generatePin() {
 }
 
 export async function GET() {
-  const guard = await requireRole([UserRole.MANAGER]);
+  const guard = await requireRole([UserRole.OWNER]);
   if ("error" in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const invites = await prisma.outletInvite.findMany({
@@ -34,7 +34,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const guard = await requireRole([UserRole.MANAGER]);
+  const guard = await requireRole([UserRole.OWNER]);
   if ("error" in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const parsed = inviteCreateSchema.safeParse(await req.json());

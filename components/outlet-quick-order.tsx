@@ -23,6 +23,7 @@ type DashboardData = {
   templates: Template[];
   lastOrder: Order | null;
 };
+type SuggestedItem = { productId: string; name: string; unit: string; qty: number; packSize: number | null; minOrderQty: number | null };
 
 export function OutletQuickOrder({ locale }: { locale: AppLocale }) {
   const d = getDictionary(locale);
@@ -37,6 +38,7 @@ export function OutletQuickOrder({ locale }: { locale: AppLocale }) {
   const [templateName, setTemplateName] = useState("Haftalik zakas");
   const [saving, setSaving] = useState(false);
   const [hint, setHint] = useState("");
+  const [suggested, setSuggested] = useState<SuggestedItem[]>([]);
 
   async function load() {
     setLoading(true);
@@ -48,6 +50,10 @@ export function OutletQuickOrder({ locale }: { locale: AppLocale }) {
 
   useEffect(() => {
     load();
+    fetch("/api/outlet/suggestions", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json) => setSuggested((json.suggestions || []) as SuggestedItem[]))
+      .catch(() => setSuggested([]));
   }, []);
 
   const products = useMemo(() => {
@@ -136,6 +142,19 @@ export function OutletQuickOrder({ locale }: { locale: AppLocale }) {
     await load();
   }
 
+  function applySuggested() {
+    if (!data) return;
+    const productMap = new Map(data.products.map((p) => [p.id, p]));
+    const next: Record<string, number> = {};
+    for (const item of suggested) {
+      const product = productMap.get(item.productId);
+      if (!product) continue;
+      next[item.productId] = normalizeQty(item.qty, product);
+    }
+    setQtyMap(next);
+    setHint("Bugungi tavsiya qo'llandi");
+  }
+
   async function reorderLast() {
     setSaving(true);
     const payloadItems = data?.lastOrder?.items.map((item) => ({ productId: item.productId, qty: item.qty })) || undefined;
@@ -221,6 +240,24 @@ export function OutletQuickOrder({ locale }: { locale: AppLocale }) {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="card lg:col-span-2">
+          {suggested.length > 0 ? (
+            <div className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold">Bugungi tavsiya</p>
+                <button type="button" className="rounded bg-emerald-600 px-3 py-1 text-xs font-semibold text-white" onClick={applySuggested}>
+                  1 klik bilan qo'llash
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-700">
+                {suggested.map((item) => (
+                  <span key={item.productId}>
+                    {item.name}: {item.qty} {item.unit}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <div className="mb-3 flex gap-2">
             <input placeholder={d["outlet.search"]} value={search} onChange={(e) => setSearch(e.target.value)} />
             <button

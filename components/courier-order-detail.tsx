@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { getDictionary, type AppLocale } from "@/lib/i18n";
+import { getDictionary, tStatus, type AppLocale } from "@/lib/i18n";
 
 type Order = {
   id: string;
@@ -60,6 +60,7 @@ export function CourierOrderDetail({ orderId, locale }: { orderId: string; local
       <div className="card space-y-2">
         <Link href="/courier/orders" className="text-sm text-slate-600">← Back</Link>
         <h1 className="text-xl font-bold">{d["courier.detailTitle"]}</h1>
+        <p className="text-sm text-slate-600">{tStatus(locale, order.status)}</p>
         <p className="text-sm">{order.outlet.outletProfile?.outletName || "Outlet"}</p>
         <p className="text-sm text-slate-600">{address}</p>
         <div className="flex gap-3 text-sm">

@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/guards";
 import { productUpdateSchema } from "@/lib/validations";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole([UserRole.MANAGER]);
+  const guard = await requireRole([UserRole.OWNER]);
   if ("error" in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const parsed = productUpdateSchema.safeParse(await req.json());
@@ -29,7 +29,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 }
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireRole([UserRole.MANAGER]);
+  const guard = await requireRole([UserRole.OWNER]);
   if ("error" in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const { id } = await params;

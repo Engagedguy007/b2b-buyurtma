@@ -28,3 +28,21 @@ export function t(locale: string | undefined | null, key: string) {
   const dictionary = getDictionary(locale);
   return dictionary[key] || key;
 }
+
+const statusKeyMap: Record<string, string> = {
+  NEW: "status.new",
+  CONFIRMED: "status.confirmed",
+  IN_PRODUCTION: "status.inProduction",
+  READY: "status.ready",
+  ASSIGNED: "status.assigned",
+  PICKED_UP: "status.pickedUp",
+  OUT_FOR_DELIVERY: "status.onWay",
+  DELIVERED: "status.delivered",
+  REJECTED: "status.rejected"
+};
+
+export function tStatus(locale: string | undefined | null, status: string) {
+  const key = statusKeyMap[status];
+  if (!key) return status;
+  return t(locale, key);
+}

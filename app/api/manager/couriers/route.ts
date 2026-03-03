@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/guards";
 
 export async function GET() {
-  const guard = await requireRole([UserRole.MANAGER]);
+  const guard = await requireRole([UserRole.OWNER]);
   if ("error" in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
   const couriers = await prisma.user.findMany({
