@@ -24,77 +24,93 @@ export function SignupForm() {
   async function requestOtp() {
     setSaving(true);
     setMsg("");
-    const res = await fetch("/api/auth/otp/request", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone })
-    });
-    setSaving(false);
-    if (!res.ok) {
-      setMsg("OTP yuborishda xato");
-      return;
+    try {
+      const res = await fetch("/api/auth/otp/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone })
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setMsg(json.error || "SMS yuborilmadi");
+        return;
+      }
+      setMsg("OTP yuborildi");
+      setStep(2);
+    } catch {
+      setMsg("Tarmoq xatosi. Internetni tekshiring.");
+    } finally {
+      setSaving(false);
     }
-    setMsg("OTP yuborildi (dev rejimda terminalda chiqadi)");
-    setStep(2);
   }
 
   async function verifyOtp() {
     setSaving(true);
     setMsg("");
-    const res = await fetch("/api/auth/otp/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone, code })
-    });
-    setSaving(false);
-    if (!res.ok) {
-      setMsg("OTP noto'g'ri yoki muddati tugagan");
-      return;
+    try {
+      const res = await fetch("/api/auth/otp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, code })
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setMsg(json.error || "OTP noto'g'ri yoki muddati tugagan");
+        return;
+      }
+      setStep(3);
+    } catch {
+      setMsg("Tarmoq xatosi. Qayta urinib ko'ring.");
+    } finally {
+      setSaving(false);
     }
-    setStep(3);
   }
 
   async function completeSignup() {
     setSaving(true);
     setMsg("");
-    const res = await fetch("/api/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        phone,
-        code,
-        name,
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone,
+          code,
+          name,
+          password,
+          role,
+          companyName: role === "OWNER" ? companyName : undefined,
+          companySlug: role !== "OWNER" ? companySlug : undefined,
+          locale: "UZ",
+          outletName: role === "OUTLET" ? outletName : undefined,
+          address: role === "OUTLET" ? address : undefined,
+          region: role === "OUTLET" ? region : undefined
+        })
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setMsg(json.error || "Ro'yxatdan o'tishda xato");
+        return;
+      }
+
+      const signInRes = await signIn("credentials", {
+        email: json.email,
         password,
-        role,
-        companyName: role === "OWNER" ? companyName : undefined,
-        companySlug: role !== "OWNER" ? companySlug : undefined,
-        locale: "UZ",
-        outletName: role === "OUTLET" ? outletName : undefined,
-        address: role === "OUTLET" ? address : undefined,
-        region: role === "OUTLET" ? region : undefined
-      })
-    });
-    const json = await res.json();
-    if (!res.ok) {
+        remember: "true",
+        redirect: false
+      });
+
+      if (signInRes?.error) {
+        setMsg("Account yaratildi, lekin auto login bo'lmadi");
+        return;
+      }
+
+      window.location.href = role === "OWNER" ? "/owner" : role === "COURIER" ? "/courier/orders" : "/outlet";
+    } catch {
+      setMsg("Tarmoq xatosi. Qayta urinib ko'ring.");
+    } finally {
       setSaving(false);
-      setMsg(json.error || "Ro'yxatdan o'tishda xato");
-      return;
     }
-
-    const signInRes = await signIn("credentials", {
-      email: json.email,
-      password,
-      remember: "true",
-      redirect: false
-    });
-    setSaving(false);
-
-    if (signInRes?.error) {
-      setMsg("Account yaratildi, lekin auto login bo'lmadi");
-      return;
-    }
-
-    window.location.href = role === "OWNER" ? "/owner" : role === "COURIER" ? "/courier/orders" : "/outlet";
   }
 
   return (
@@ -105,7 +121,7 @@ export function SignupForm() {
         <>
           <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+998901234567" />
           <button type="button" onClick={requestOtp} disabled={saving} className="w-full rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white">
-            OTP yuborish
+            {saving ? "Yuborilmoqda..." : "OTP yuborish"}
           </button>
         </>
       ) : null}
@@ -114,7 +130,7 @@ export function SignupForm() {
         <>
           <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="6 xonali kod" />
           <button type="button" onClick={verifyOtp} disabled={saving} className="w-full rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white">
-            OTP tasdiqlash
+            {saving ? "Tekshirilmoqda..." : "OTP tasdiqlash"}
           </button>
         </>
       ) : null}
@@ -144,7 +160,7 @@ export function SignupForm() {
           ) : null}
 
           <button type="button" onClick={completeSignup} disabled={saving} className="w-full rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">
-            Account yaratish
+            {saving ? "Yaratilmoqda..." : "Account yaratish"}
           </button>
         </div>
       ) : null}

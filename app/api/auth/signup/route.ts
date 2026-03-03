@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import { Locale, UserRole } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { consumeOtp, normalizePhone, verifyOtp } from "@/lib/otp";
+import { normalizePhone, verifyOtp } from "@/lib/otp";
 import { signupWithOtpSchema } from "@/lib/validations";
 
 function slugify(input: string) {
@@ -18,8 +18,8 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const data = parsed.data;
-  const otpResult = await verifyOtp(data.phone, data.code);
-  if (!otpResult.ok) return NextResponse.json({ error: otpResult.reason }, { status: 400 });
+  const otpResult = await verifyOtp(data.phone, data.code, { consume: true });
+  if (!otpResult.ok) return NextResponse.json({ error: otpResult.reason }, { status: otpResult.status });
 
   const phone = normalizePhone(data.phone);
   const existingByPhone = await prisma.user.findUnique({ where: { phone } });
@@ -78,6 +78,5 @@ export async function POST(req: Request) {
     });
   }
 
-  await consumeOtp(otpResult.otpId);
   return NextResponse.json({ ok: true, email });
 }

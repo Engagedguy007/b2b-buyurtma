@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+const uzPhoneRegex = /^\+998\d{9}$/;
+
 export const quickOrderSchema = z.object({
   deliveryType: z.enum(["TODAY", "TOMORROW", "CUSTOM"]),
   deliveryDate: z.string().optional(),
@@ -72,17 +74,17 @@ export const inviteClaimSchema = z.object({
 });
 
 export const otpRequestSchema = z.object({
-  phone: z.string().regex(/^\+?[0-9]{9,15}$/)
+  phone: z.string().regex(uzPhoneRegex)
 });
 
 export const otpVerifySchema = z.object({
-  phone: z.string().regex(/^\+?[0-9]{9,15}$/),
+  phone: z.string().regex(uzPhoneRegex),
   code: z.string().regex(/^\d{6}$/)
 });
 
 export const signupWithOtpSchema = z
   .object({
-    phone: z.string().regex(/^\+?[0-9]{9,15}$/),
+    phone: z.string().regex(uzPhoneRegex),
     code: z.string().regex(/^\d{6}$/),
     password: z.string().min(8).max(128),
     name: z.string().min(2).max(80),
