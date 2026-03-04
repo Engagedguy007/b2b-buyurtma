@@ -8,6 +8,7 @@ type Role = "OWNER" | "COURIER" | "OUTLET";
 
 export function SignupForm() {
   const [step, setStep] = useState<Step>(1);
+  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("+998");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
@@ -25,17 +26,17 @@ export function SignupForm() {
     setSaving(true);
     setMsg("");
     try {
-      const res = await fetch("/api/auth/otp/request", {
+      const res = await fetch("/api/auth/email-otp/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone })
+        body: JSON.stringify({ email })
       });
       const json = await res.json();
       if (!res.ok) {
-        setMsg(json.error || "SMS yuborilmadi");
+        setMsg(json.error || "Email yuborilmadi");
         return;
       }
-      setMsg("OTP yuborildi");
+      setMsg("OTP emailingizga yuborildi");
       setStep(2);
     } catch {
       setMsg("Tarmoq xatosi. Internetni tekshiring.");
@@ -48,10 +49,10 @@ export function SignupForm() {
     setSaving(true);
     setMsg("");
     try {
-      const res = await fetch("/api/auth/otp/verify", {
+      const res = await fetch("/api/auth/email-otp/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, code })
+        body: JSON.stringify({ email, code })
       });
       const json = await res.json();
       if (!res.ok) {
@@ -70,11 +71,11 @@ export function SignupForm() {
     setSaving(true);
     setMsg("");
     try {
-      const res = await fetch("/api/auth/signup", {
+      const res = await fetch("/api/auth/signup-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          phone,
+          email,
           code,
           name,
           password,
@@ -82,6 +83,7 @@ export function SignupForm() {
           companyName: role === "OWNER" ? companyName : undefined,
           companySlug: role !== "OWNER" ? companySlug : undefined,
           locale: "UZ",
+          phone: role === "OUTLET" ? phone : undefined,
           outletName: role === "OUTLET" ? outletName : undefined,
           address: role === "OUTLET" ? address : undefined,
           region: role === "OUTLET" ? region : undefined
@@ -119,9 +121,9 @@ export function SignupForm() {
 
       {step === 1 ? (
         <>
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+998901234567" />
+          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com" />
           <button type="button" onClick={requestOtp} disabled={saving} className="w-full rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white">
-            {saving ? "Yuborilmoqda..." : "OTP yuborish"}
+            {saving ? "Yuborilmoqda..." : "Email OTP yuborish"}
           </button>
         </>
       ) : null}
@@ -153,6 +155,7 @@ export function SignupForm() {
 
           {role === "OUTLET" ? (
             <>
+              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+998901234567" />
               <input value={outletName} onChange={(e) => setOutletName(e.target.value)} placeholder="Outlet nomi" />
               <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Manzil" />
               <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="Hudud" />

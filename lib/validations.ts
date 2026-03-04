@@ -115,3 +115,50 @@ export const signupWithOtpSchema = z
       }
     }
   });
+
+export const emailOtpRequestSchema = z.object({
+  email: z.string().email().max(120)
+});
+
+export const emailOtpVerifySchema = z.object({
+  email: z.string().email().max(120),
+  code: z.string().regex(/^\d{6}$/)
+});
+
+export const signupWithEmailOtpSchema = z
+  .object({
+    email: z.string().email().max(120),
+    code: z.string().regex(/^\d{6}$/),
+    password: z.string().min(8).max(128),
+    name: z.string().min(2).max(80),
+    role: z.enum(["OWNER", "COURIER", "OUTLET"]),
+    companyName: z.string().min(2).max(120).optional(),
+    companySlug: z.string().min(2).max(80).regex(/^[a-z0-9-]+$/).optional(),
+    locale: z.enum(["UZ", "RU", "EN"]).default("UZ"),
+    phone: z.string().regex(uzPhoneRegex).optional(),
+    outletName: z.string().min(2).max(120).optional(),
+    address: z.string().min(5).max(200).optional(),
+    region: z.string().min(2).max(80).optional()
+  })
+  .superRefine((val, ctx) => {
+    if (val.role === "OWNER" && !val.companyName) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["companyName"], message: "companyName required for OWNER" });
+    }
+    if (val.role !== "OWNER" && !val.companySlug) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["companySlug"], message: "companySlug required" });
+    }
+    if (val.role === "OUTLET") {
+      if (!val.phone) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["phone"], message: "phone required" });
+      }
+      if (!val.outletName) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["outletName"], message: "outletName required" });
+      }
+      if (!val.address) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["address"], message: "address required" });
+      }
+      if (!val.region) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["region"], message: "region required" });
+      }
+    }
+  });

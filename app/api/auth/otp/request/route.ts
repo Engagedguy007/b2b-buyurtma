@@ -17,14 +17,14 @@ export async function POST(req: Request) {
   }
 
   const smsText = `Tasdiqlash kodi: ${otp.code}. Kod 5 daqiqa amal qiladi.`;
-  const smsRes = await sendSms(otp.phone, smsText);
+  const smsRes = await sendSms(otp.identifier, smsText);
   if (!smsRes.ok) {
     await prisma.otpCode.deleteMany({ where: { id: otp.otpId } });
     return NextResponse.json({ error: `SMS yuborilmadi: ${smsRes.error}` }, { status: smsRes.status || 500 });
   }
 
   if (process.env.NODE_ENV !== "production" && !process.env.SMS_PROVIDER) {
-    console.log("OTP for", otp.phone, ":", otp.code);
+    console.log("OTP for", otp.identifier, ":", otp.code);
   }
 
   return NextResponse.json({ ok: true });

@@ -7,29 +7,33 @@ const OTP_REQUEST_WINDOW_MS = 60 * 1000;
 const OTP_REQUEST_LIMIT = 3;
 
 type OtpResult =
-  | { ok: true; otpId: string; phone: string; code: string }
+  | { ok: true; otpId: string; identifier: string; code: string }
   | { ok: false; status: 400 | 404 | 429 | 500; reason: string };
 
 type VerifyResult =
-  | { ok: true; otpId: string; phone: string }
+  | { ok: true; otpId: string; identifier: string }
   | { ok: false; status: 400 | 404 | 429 | 500; reason: string };
 
 export function normalizePhone(phone: string) {
   return phone.replace(/\s+/g, "");
 }
 
+export function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
 export function generateOtpCode() {
   return `${Math.floor(100000 + Math.random() * 900000)}`;
 }
 
-export async function createOtp(phone: string): Promise<OtpResult> {
+async function createOtpInternal(identifier: string): Promise<OtpResult> {
   try {
-    const normalizedPhone = normalizePhone(phone);
+    const normalizedIdentifier = identifier;
     const windowStart = new Date(Date.now() - OTP_REQUEST_WINDOW_MS);
 
     const requestCount = await prisma.otpCode.count({
       where: {
-        phone: normalizedPhone,
+        phone: normalizedIdentifier,
         createdAt: { gte: windowStart }
       }
     });
@@ -39,7 +43,7 @@ export async function createOtp(phone: string): Promise<OtpResult> {
 
     // Same phone uchun eski aktiv kodlarni invalidate qilamiz.
     await prisma.otpCode.updateMany({
-      where: { phone: normalizedPhone, usedAt: null },
+      where: { phone: normalizedIdentifier, usedAt: null },
       data: { usedAt: new Date() }
     });
 
@@ -47,28 +51,28 @@ export async function createOtp(phone: string): Promise<OtpResult> {
     const codeHash = await bcrypt.hash(code, 10);
     const otp = await prisma.otpCode.create({
       data: {
-        phone: normalizedPhone,
+        phone: normalizedIdentifier,
         codeHash,
         expiresAt: new Date(Date.now() + OTP_TTL_MS),
         attempts: 0
       }
     });
 
-    return { ok: true, otpId: otp.id, phone: normalizedPhone, code };
+    return { ok: true, otpId: otp.id, identifier: normalizedIdentifier, code };
   } catch {
     return { ok: false, status: 500, reason: "OTP yaratishda server xatosi" };
   }
 }
 
-export async function verifyOtp(
-  phone: string,
+async function verifyOtpInternal(
+  identifier: string,
   code: string,
   options?: { consume?: boolean }
 ): Promise<VerifyResult> {
   try {
-    const normalizedPhone = normalizePhone(phone);
+    const normalizedIdentifier = identifier;
     const otp = await prisma.otpCode.findFirst({
-      where: { phone: normalizedPhone, usedAt: null },
+      where: { phone: normalizedIdentifier, usedAt: null },
       orderBy: { createdAt: "desc" }
     });
 
@@ -105,8 +109,24 @@ export async function verifyOtp(
       await prisma.otpCode.delete({ where: { id: otp.id } });
     }
 
-    return { ok: true, otpId: otp.id, phone: normalizedPhone };
+    return { ok: true, otpId: otp.id, identifier: normalizedIdentifier };
   } catch {
     return { ok: false, status: 500, reason: "OTP tekshirishda server xatosi" };
   }
+}
+
+export async function createOtp(phone: string): Promise<OtpResult> {
+  return createOtpInternal(normalizePhone(phone));
+}
+
+export async function verifyOtp(phone: string, code: string, options?: { consume?: boolean }): Promise<VerifyResult> {
+  return verifyOtpInternal(normalizePhone(phone), code, options);
+}
+
+export async function createEmailOtp(email: string): Promise<OtpResult> {
+  return createOtpInternal(normalizeEmail(email));
+}
+
+export async function verifyEmailOtp(email: string, code: string, options?: { consume?: boolean }): Promise<VerifyResult> {
+  return verifyOtpInternal(normalizeEmail(email), code, options);
 }
